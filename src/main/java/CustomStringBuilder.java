@@ -3,68 +3,56 @@ import java.util.Stack;
 
 public class CustomStringBuilder {
 
-    private char[] value;                        // Внутренний массив для физического хранения текста
-    private int size;                            // Количество записанных символов
-    private final Stack<Snapshot> history = new Stack<>();       // Опекун(Caretaker) -> Стек для хранения снимков состояний (история изменений)
-    private static final int DEFAULT_CAPACITY = 16;             // размер массива
+    private char[] value;
+    private int size;                                               // Количество фактически записанных символов (длина строки)
+    private final Stack<Snapshot> history = new Stack<>();          // Стек для хранения внешних объектов-снимков (история изменений)
+    private static final int DEFAULT_CAPACITY = 16;
 
-
-    private static class Snapshot {              // Внутренний класс-снимок для паттерна Snapshot
-        private final char[] valueCopy;          // хранение копии символов в момент снимка
-        private final int sizeCopy;              //  размер строки в момент создания снимка
-
-        public Snapshot(char[] value, int size) {                    // Делаю глубокую копию массива символов
-            this.valueCopy = Arrays.copyOf(value, value.length);    // создаю копию массива в памяти и сохраняем ее ссылку
-            this.sizeCopy = size;                                   // текущий размер строки
-        }
-    }
-
-    public CustomStringBuilder() {                      //  с пустой строкой
+    public CustomStringBuilder() {                                    // Конструктор по умолчанию (создает пустую строку)
         this.value = new char[DEFAULT_CAPACITY];
         this.size = 0;
     }
 
-    public CustomStringBuilder(String str) {               // принимает строку
+    public CustomStringBuilder(String str) {                         // Конструктор, принимающий начальный текст
         if (str == null) {
             str = "null";
         }
-        this.size = str.length();                             // получаю длину переданной строки и сохраняю ее в size
-        this.value = new char[this.size + DEFAULT_CAPACITY];   // создаю массив с запасом(длина текста + 16 ячеек)
-        str.getChars(0, this.size, this.value, 0);     // копирую символы из объекта String в value
+        this.size = str.length();
+        this.value = new char[this.size + DEFAULT_CAPACITY];
+        str.getChars(0, this.size, this.value, 0);
     }
 
-    private void saveSnapshot() {                                // Сохранение текущего состояния в стек перед изменениями
-        history.push(new Snapshot(this.value, this.size));        // создал объект Snapshot с текущими данными на вершине стека
+    private void saveSnapshot() {                                     // Сохранение текущего состояния в стек перед изменениями
+        history.push(new Snapshot(this.value, this.size));             // Теперь мы создаем объект внешнего класса Snapshot
     }
 
-    private void ensureCapacity(int minimumCapacity) {                 // расширение массива при нехватке места
-        if (minimumCapacity - value.length > 0) {                      // если требуемый размер строки превышает текущую длину массива
+    private void ensureCapacity(int minimumCapacity) {                 // Автоматическое расширение массива при нехватке места
+        if (minimumCapacity - value.length > 0) {
             int newCapacity = (value.length * 2) + 2;
-            if (newCapacity - minimumCapacity < 0) {                   // если новая расчетная емкость все еще меньше, чем необходимо
-                newCapacity = minimumCapacity;                         // Принудительно делаем новую = минимально необходимой
+            if (newCapacity - minimumCapacity < 0) {
+                newCapacity = minimumCapacity;
             }
-            value = Arrays.copyOf(value, newCapacity);                 // выделяю новый массив большего размера и копирую туда старые символы
+            value = Arrays.copyOf(value, newCapacity);
         }
     }
 
-    public CustomStringBuilder append(String str) {
+    public CustomStringBuilder append(String str) {                   //  добавление строки
         if (str == null) {
             str = "null";
         }
-        saveSnapshot();                             // 1) Создаю снимок и кладем в стек ДО внесения изменений
-        int len = str.length();                     // длина добавляемой строки
-        ensureCapacity(size + len);     // 2) Проверяем, поместится ли новая строка
-        str.getChars(0, len, value, size);      // 3) записываю символы новой строки в массив, начиная с позиции size
-        size += len;                                      // счётчик
-        return this;                                    // возвращаю ссылку на текущий объект для вызовов по цепочке через точку
+        saveSnapshot();                                     // Запомнил состояние ДО изменения
+        int len = str.length();
+        ensureCapacity(size + len);             // Проверяем, поместится ли новая строка
+        str.getChars(0, len, value, size);            // Копируем символы новой строки в наш массив
+        size += len;                                          // Увеличиваем размер строки
+        return this;
     }
 
-
-    public CustomStringBuilder undo() {               // мой метод отмены последнего действия
+    public CustomStringBuilder undo() {                         //  отмена последнего действия
         if (!history.isEmpty()) {
-            Snapshot lastState = history.pop();             // Достаем самый верхний (последний) снимок из стека
-            this.value = lastState.valueCopy;                 // Восстанавливаем массив и размер из этого снимка
-            this.size = lastState.sizeCopy;
+            Snapshot lastState = history.pop();                   // Достал верхний снимок из стека
+            this.value = lastState.getValueCopy();             // Восстанавливаю массив и размер, используя публичные геттеры Snapshot
+            this.size = lastState.getSizeCopy();
         } else {
             System.out.println("Нечего отменять! История изменений пуста.");
         }
@@ -72,7 +60,7 @@ public class CustomStringBuilder {
     }
 
     @Override
-    public String toString() {                       // Преобразовал массив в строку для вывода
+    public String toString() {                        // представил массив в виде строки
         return new String(value, 0, size);
     }
 }
